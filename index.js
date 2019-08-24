@@ -126,7 +126,7 @@ function setup(rocketh, ethers) {
     };
 
     function fromDeployment(deployment) {
-        return {address: deployment.address, abi :deployment.contractInfo.abi, _ethersContract: new ethers.Contract(deployment.address, deployment.contractInfo.abi, signer)};
+        return {address: deployment.address, abi: deployment.contractInfo.abi, _ethersContract: new ethers.Contract(deployment.address, deployment.contractInfo.abi, signer)};
     }
 
     async function getDeployedContractWithTransactionHash(name) {
@@ -232,6 +232,13 @@ function setup(rocketh, ethers) {
         return contract._ethersContract.functions[methodName](...args, overrides(options));
     }
 
+    function encodeABI(contract, methodName, ...args) {
+        // console.log(methodName, args);
+        const data = contract._ethersContract.interface.functions[methodName].encode(args);
+        // console.log(JSON.stringify(data, null, '  '));
+        return data;
+    }
+
     function fetchReceipt(txHash) {
         return provider.getTransactionReceipt(txHash);
     }
@@ -266,6 +273,7 @@ function setup(rocketh, ethers) {
     }
 
     return {
+        encodeABI,
         fetchIfDifferent,
         deployIfDifferent,
         getDeployedContract,
