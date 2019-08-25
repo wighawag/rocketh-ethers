@@ -1,17 +1,17 @@
 
 function setup(rocketh, ethers) {
-    if(!rocketh) {
+    if (!rocketh) {
         throw new Error("rocketh-ethers expect to be passed rocketh module as first argument");
     }
-    if(!ethers) {
+    if (!ethers) {
         throw new Error("rocketh-ethers expect to be passed ethers module as second argument");
     }
     const provider = new ethers.providers.Web3Provider(rocketh.ethereum);
     const signer = provider.getSigner();
 
-    const deploy = async(name, options, contractName, ...args) => {
+    const deploy = async (name, options, contractName, ...args) => {
         let register = true;
-        if(typeof name != 'string') {
+        if (typeof name != 'string') {
             register = false;
             args.unshift(contractName);
             contractName = options;
@@ -19,11 +19,11 @@ function setup(rocketh, ethers) {
         }
         const ContractInfo = rocketh.contractInfo(contractName);
         const factory = new ethers.ContractFactory(ContractInfo.abi, '0x' + ContractInfo.evm.bytecode.object, signer);
-        
-        
+
+
         let contract;
         let transactionHash;
-        if(options.from.length > 42) {
+        if (options.from.length > 42) {
             const deployData = factory.getDeployTransaction(...args);
             console.log(JSON.stringify(deployData, null, '  '));
             const txOptions = {
@@ -43,10 +43,10 @@ function setup(rocketh, ethers) {
             await contract.deployed();
         }
 
-        
-        if(register) {
-            rocketh.registerDeployment(name, { 
-                contractInfo: ContractInfo, 
+
+        if (register) {
+            rocketh.registerDeployment(name, {
+                contractInfo: ContractInfo,
                 address: contract.address,
                 transactionHash,
                 args
@@ -67,7 +67,7 @@ function setup(rocketh, ethers) {
 
     const deployIfNeverDeployed = async (name, options, contractName, ...args) => {
         const deployment = rocketh.deployment(name);
-        if(!deployment) {
+        if (!deployment) {
             return deploy(name, options, contractName, ...args);
         } else {
             return getDeployedContractWithTransactionHash(name);
@@ -76,9 +76,9 @@ function setup(rocketh, ethers) {
 
     const fetchIfDifferent = async (fieldsToCompare, name, options, contractName, ...args) => {
         const deployment = rocketh.deployment(name);
-        if(deployment) {
+        if (deployment) {
             const transaction = await provider.getTransaction(deployment.transactionHash);
-            if(transaction) {
+            if (transaction) {
                 const ContractInfo = rocketh.contractInfo(contractName);
                 const factory = new ethers.ContractFactory(ContractInfo.abi, '0x' + ContractInfo.evm.bytecode.object, signer);
 
@@ -86,7 +86,7 @@ function setup(rocketh, ethers) {
                 const compareOnInput = fieldsToCompare.indexOf('input') != -1;
 
                 let data;
-                if(compareOnData || compareOnInput) {
+                if (compareOnData || compareOnInput) {
                     data = factory.getDeployTransaction(...args);
                     console.log(JSON.stringify(data, null, '  '));
                 }
@@ -100,16 +100,16 @@ function setup(rocketh, ethers) {
                 };
 
                 transaction.data = transaction.input;
-                for(let i = 0; i < fieldsToCompare.length; i++) {
+                for (let i = 0; i < fieldsToCompare.length; i++) {
                     const field = fieldsToCompare[i];
-                    if(typeof newTransaction[field] == 'undefined') {
+                    if (typeof newTransaction[field] == 'undefined') {
                         throw new Error('field ' + field + ' not specified in new transaction, cant compare');
                     }
-                    if(transaction[field] != newTransaction[field]) {
+                    if (transaction[field] != newTransaction[field]) {
                         return true;
                     }
                 }
-                return false; 
+                return false;
             }
         }
         return true;
@@ -117,30 +117,30 @@ function setup(rocketh, ethers) {
 
     const deployIfDifferent = async (fieldsToCompare, name, options, contractName, ...args) => {
         const differences = await fetchIfDifferent(fieldsToCompare, name, options, contractName, ...args);
-        if(differences) {
+        if (differences) {
             return deploy(name, options, contractName, ...args);
         } else {
             return getDeployedContractWithTransactionHash(name);
         }
-        
+
     };
 
     function fromDeployment(deployment) {
-        return {address: deployment.address, abi: deployment.contractInfo.abi, _ethersContract: new ethers.Contract(deployment.address, deployment.contractInfo.abi, signer)};
+        return { address: deployment.address, abi: deployment.contractInfo.abi, _ethersContract: new ethers.Contract(deployment.address, deployment.contractInfo.abi, signer) };
     }
 
     async function getDeployedContractWithTransactionHash(name) {
         const deployment = rocketh.deployment(name);
-        if(!deployment) {
+        if (!deployment) {
             return null;
         }
         const receipt = await fetchReceipt(deployment.transactionHash);
-        return {contract: fromDeployment(deployment), transactionHash: deployment.transactionHash, receipt};
+        return { contract: fromDeployment(deployment), transactionHash: deployment.transactionHash, receipt };
     }
 
     function getDeployedContract(name) {
         const deployment = rocketh.deployment(name);
-        if(!deployment) {
+        if (!deployment) {
             return null;
         }
         return fromDeployment(deployment)
@@ -148,24 +148,26 @@ function setup(rocketh, ethers) {
 
     function registerContract(name, address, txHash, contractName, ...args) {
         const ContractInfo = rocketh.contractInfo(contractName);
-        rocketh.registerDeployment(name, { 
-            contractInfo: ContractInfo, 
+        rocketh.registerDeployment(name, {
+            contractInfo: ContractInfo,
             address,
             transactionHash: txHash,
             args
         });
-        return {addresss, abi: ContractInfo.abi};
+        return { addresss, abi: ContractInfo.abi };
     }
 
 
     function overrides(options) {
         return {
-            gasLimit: options.gas,
-            // from: options.from,
+            gasLimit: options.gas || options.gasLimit,
+            // from: options.from, // TODO getSigner(options.from)
+            value: options.value,
+            gasPrice: options.gasPrice
         }
     }
     async function tx(options, contract, methodName, ...args) {
-        if(options.from.length > 42) {
+        if (options.from.length > 42) {
             const privateKey = options.from;
             const fromWallet = new ethers.Wallet(privateKey);
             const from = fromWallet.address;
@@ -175,7 +177,7 @@ function setup(rocketh, ethers) {
             const gasPrice = options.gasPrice || await provider.getGasPrice();
             let data = options.data;
             let to = options.to;
-            if(contract) {
+            if (contract) {
                 to = contract.address;
                 data = contract.functions[methodName].encode(...args);
                 console.log(JSON.stringify(data, null, '  '));
@@ -190,9 +192,9 @@ function setup(rocketh, ethers) {
                 to
             };
             const signedTx = await signer.signTransaction(txOptions, privateKey);
-            return web3.eth.sendSignedTransaction(signedTx.rawTransaction);                    
+            return web3.eth.sendSignedTransaction(signedTx.rawTransaction);
         } else {
-            if(contract) {
+            if (contract) {
                 return contract._ethersContract.functions[methodName](...args, overrides(options));
             } else {
                 return provider.sendTransaction(options);
@@ -201,12 +203,12 @@ function setup(rocketh, ethers) {
     }
 
     function estimateGas(options, contract, methodName, ...args) {
-        if(typeof args == "undefined") {
+        if (typeof args == "undefined") {
             args = [];
         }
-        if(typeof contract == "string") {
+        if (typeof contract == "string") {
             args = args.concat([]);
-            if(typeof methodName != "undefined") {
+            if (typeof methodName != "undefined") {
                 args.unshift(methodName);
             }
             methodName = contract;
@@ -217,12 +219,12 @@ function setup(rocketh, ethers) {
     }
 
     function call(options, contract, methodName, ...args) {
-        if(typeof args == "undefined") {
+        if (typeof args == "undefined") {
             args = [];
         }
-        if(typeof contract == "string") {
+        if (typeof contract == "string") {
             args = args.concat([]);
-            if(typeof methodName != "undefined") {
+            if (typeof methodName != "undefined") {
                 args.unshift(methodName);
             }
             methodName = contract;
@@ -245,29 +247,29 @@ function setup(rocketh, ethers) {
 
     // from https://github.com/OpenZeppelin/zeppelin-solidity/blob/master/test/helpers/expectThrow.js
     // Changing to use the invalid opcode error instead works
-    async function expectThrow (promise) {
+    async function expectThrow(promise) {
         let receipt;
         try {
-        receipt = await promise;
+            receipt = await promise;
         } catch (error) {
-        // TODO: Check jump destination to destinguish between a throw
-        //       and an actual invalid jump.
-        const invalidOpcode = error.message.search('invalid opcode') >= 0;
-        // TODO: When we contract A calls contract B, and B throws, instead
-        //       of an 'invalid jump', we get an 'out of gas' error. How do
-        //       we distinguish this from an actual out of gas event? (The
-        //       ganache log actually show an 'invalid jump' event.)
-        const outOfGas = error.message.search('out of gas') >= 0;
-        const revert = error.message.search('revert') >= 0;
-        const status0x0 = error.message.search('status": "0x0"') >= 0 ||  error.message.search('status":"0x0"') >= 0; // TODO better
-        assert(
-            invalidOpcode || outOfGas || revert || status0x0,
-            'Expected throw, got \'' + error + '\' instead',
-        );
-        return;
+            // TODO: Check jump destination to destinguish between a throw
+            //       and an actual invalid jump.
+            const invalidOpcode = error.message.search('invalid opcode') >= 0;
+            // TODO: When we contract A calls contract B, and B throws, instead
+            //       of an 'invalid jump', we get an 'out of gas' error. How do
+            //       we distinguish this from an actual out of gas event? (The
+            //       ganache log actually show an 'invalid jump' event.)
+            const outOfGas = error.message.search('out of gas') >= 0;
+            const revert = error.message.search('revert') >= 0;
+            const status0x0 = error.message.search('status": "0x0"') >= 0 || error.message.search('status":"0x0"') >= 0; // TODO better
+            assert(
+                invalidOpcode || outOfGas || revert || status0x0,
+                'Expected throw, got \'' + error + '\' instead',
+            );
+            return;
         }
-        if(receipt.status == "0x0") {
-        return;
+        if (receipt.status == "0x0") {
+            return;
         }
         assert.fail('Expected throw not received');
     }
@@ -288,7 +290,7 @@ function setup(rocketh, ethers) {
         getTransactionCount: (from) => provider.getTransactionCount(from),
         getBalance: (from) => provider.getBalance(from),
         zeroBytes: '0x',
-        getEventSignature: (abi, name)=> {
+        getEventSignature: (abi, name) => {
             (new ethers.utils.Interface(abi)).events[name].signature;
         }
     };
