@@ -1,4 +1,4 @@
-
+const assert = require('assert');
 function setup(rocketh, ethers) {
     if (!rocketh) {
         throw new Error("rocketh-ethers expect to be passed rocketh module as first argument");
@@ -231,7 +231,7 @@ function setup(rocketh, ethers) {
             contract = options;
             options = {};
         }
-        return contract._ethersContract.functions[methodName](...args, overrides(options));
+        return contract._ethersContract.callStatic[methodName](...args, overrides(options));
     }
 
     function encodeABI(contract, methodName, ...args) {
